@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Верю — Не Верю</title>
+<style>
+:root {
+    --bg: #1a1a24; --card: #252535; --accent: #ff7b54;
+    --accent-hover: #ff9770; --text: #f1f1f1; --muted: #a0a0b0;
+    --success: #4caf50; --danger: #e74c3c; --truth: #3498db; --lie: #e74c3c;
+}
+* { box-sizing: border-box; }
+body {
+    font-family: 'Segoe UI', sans-serif; background: var(--bg);
+    color: var(--text); min-height: 100vh; margin: 0;
+    display: flex; justify-content: center; align-items: center; padding: 10px;
+}
+.container { width: 100%; max-width: 650px; padding: 20px; }
+.screen {
+    display: none; background: var(--card); padding: 30px;
+    border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    animation: fadeIn 0.3s;
+}
+.screen.active { display: block; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+h1 { text-align: center; color: var(--accent); margin-bottom: 10px; }
+h2 { text-align: center; margin-top: 0; }
+.subtitle { text-align: center; color: var(--muted); margin-bottom: 25px; }
+.form-group { margin-bottom: 20px; }
+label { display: block; margin-bottom: 8px; font-weight: bold; color: var(--muted); }
+input[type="text"] {
+    width: 100%; padding: 12px; border-radius: 8px;
+    border: 2px solid #3a3a4a; background: #1e1e2a; color: var(--text);
+    font-size: 16px; transition: border-color 0.2s;
+}
+input[type="text"]:focus { outline: none; border-color: var(--accent); }
+.avatar-upload { display: flex; align-items: center; gap: 20px; }
+.avatar-preview {
+    width: 80px; height: 80px; border-radius: 50%; background: #3a3a4a;
+    display: flex; justify-content: center; align-items: center; font-size: 30px;
+    color: var(--muted); overflow: hidden; border: 3px solid var(--accent); cursor: pointer;
+}
+.avatar-preview img { width: 100%; height: 100%; object-fit: cover; }
+.btn {
+    width: 100%; padding: 14px; border: none; border-radius: 8px;
+    font-size: 18px; font-weight: bold; cursor: pointer; margin-top: 10px;
+    transition: all 0.2s;
+}
+.btn-primary { background: var(--accent); color: white; }
+.btn-primary:hover:not(:disabled) { background: var(--accent-hover); transform: translateY(-2px); }
+.btn-secondary { background: transparent; border: 2px solid var(--muted); color: var(--muted); }
+.btn-secondary:hover { border-color: var(--text); color: var(--text); }
+.btn-truth { background: var(--truth); color: white; }
+.btn-lie { background: var(--lie); color: white; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.divider { text-align: center; margin: 25px 0; color: var(--muted); position: relative; }
+.divider::before, .divider::after { content: ""; position: absolute; top: 50%; width: 40%; height: 1px; background: #3a3a4a; }
+.divider::before { left: 0; } .divider::after { right: 0; }
+.lobby-code {
+    text-align: center; font-size: 20px; margin-bottom: 25px;
+    background: #1e1e2a; padding: 15px; border-radius: 10px;
+    border: 2px dashed var(--accent);
+}
+.lobby-code span { font-size: 36px; font-weight: bold; color: var(--accent); letter-spacing: 5px; }
+.players-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 25px; }
+.player-slot {
+    background: #1e1e2a; padding: 12px; border-radius: 12px;
+    display: flex; flex-direction: column; align-items: center; text-align: center;
+    border: 2px solid #3a3a4a; min-height: 100px; justify-content: center;
+}
+.player-slot.filled { border-color: var(--success); }
+.player-slot.host { border-color: var(--accent); }
+.slot-avatar {
+    width: 50px; height: 50px; border-radius: 50%; background: #3a3a4a;
+    margin-bottom: 8px; overflow: hidden; display: flex;
+    justify-content: center; align-items: center; font-size: 20px;
+}
+.slot-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.slot-name { font-weight: bold; word-break: break-word; font-size: 14px; }
+.host-badge { font-size: 10px; color: var(--accent); margin-top: 2px; }
+.empty .slot-name { color: var(--muted); font-style: italic; }
+.error-msg { color: var(--danger); text-align: center; margin-top: 10px; font-size: 14px; display: none; }
+
+/* Game UI */
+.game-header {
+    background: #1e1e2a; padding: 15px; border-radius: 10px;
+    margin-bottom: 20px; display: flex; justify-content: space-between;
+    align-items: center; flex-wrap: wrap; gap: 10px;
+}
+.scores {
+    font-size: 24px; font-weight: bold;
+    color: var(--success);
+}
+.round-info { color: var(--muted); }
+.active-player {
+    text-align: center; padding: 15px; background: #1e1e2a;
+    border-radius: 10px; margin-bottom: 15px; border: 2px solid var(--accent);
+}
+.active-player .name { font-size: 20px; color: var(--accent); font-weight: bold; }
+.card-display {
+    text-align: center; padding: 20px; border-radius: 15px;
+    margin-bottom: 15px; font-size: 22px; font-weight: bold;
+    border: 3px solid;
+}
+.card-truth { background: rgba(52,152,219,0.2); border-color: var(--truth); color: var(--truth); }
+.card-lie { background: rgba(231,76,60,0.2); border-color: var(--lie); color: var(--lie); }
+.statement-box {
+    background: #1e1e2a; padding: 20px; border-radius: 10px;
+    margin-bottom: 15px; border-left: 4px solid var(--accent);
+    font-size: 18px; line-height: 1.5;
+}
+.vote-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
+.result-box {
+    background: #1e1e2a; padding: 20px; border-radius: 10px;
+    margin-bottom: 15px; text-align: center;
+}
+.result-box h3 { margin: 0 0 10px 0; font-size: 22px; }
+.points-earned {
+    font-size: 32px; font-weight: bold; margin: 10px 0;
+}
+.vote-results-list { text-align: left; margin-top: 15px; font-size: 14px; color: var(--muted); }
+.vote-results-list div { padding: 4px 0; }
+.vote-correct { color: var(--success); }
+.vote-wrong { color: var(--danger); }
+.history {
+    background: #1e1e2a; padding: 10px; border-radius: 8px;
+    max-height: 120px; overflow-y: auto; margin-bottom: 15px;
+    font-size: 13px;
+}
+.history-item { padding: 4px 0; border-bottom: 1px solid #3a3a4a; }
+.history-item:last-child { border-bottom: none; }
+.game-over { text-align: center; padding: 30px; }
+.game-over h1 { font-size: 36px; }
+.win { color: var(--success); }
+.lose { color: var(--danger); }
+textarea {
+    width: 100%; padding: 12px; border-radius: 8px;
+    border: 2px solid #3a3a4a; background: #1e1e2a; color: var(--text);
+    font-size: 16px; font-family: inherit; resize: vertical;
+    min-height: 80px;
+}
+textarea:focus { outline: none; border-color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- МЕНЮ -->
+<div id="screen-menu" class="screen active">
+    <h1>Верю — Не Верю</h1>
+    <p class="subtitle">Кооперативная игра на 2-4 игроков</p>
+    <div class="form-group">
+        <label>Ваш никнейм</label>
+        <input type="text" id="nickname" placeholder="Введите ник..." maxlength="15">
+    </div>
+    <div class="form-group">
+        <label>Аватарка</label>
+        <div class="avatar-upload">
+            <div class="avatar-preview" id="avatar-preview" onclick="document.getElementById('avatar-input').click()">👤</div>
+            <div>
+                <input type="file" id="avatar-input" accept="image/*" style="display:none;" onchange="handleAvatar(event)">
+                <button class="btn btn-secondary" style="width:auto;padding:10px 20px;margin:0;" onclick="document.getElementById('avatar-input').click()">Загрузить</button>
+            </div>
+        </div>
+    </div>
+    <button class="btn btn-primary" onclick="createLobby()">Создать лобби</button>
+    <div class="divider">или</div>
+    <div class="form-group">
+        <label>Код лобби</label>
+        <input type="text" id="join-code" placeholder="4 цифры..." maxlength="4">
+    </div>
+    <button class="btn btn-secondary" onclick="joinLobby()">Присоединиться</button>
+    <p class="error-msg" id="error-msg"></p>
+</div>
+
+<!-- ЛОББИ -->
+<div id="screen-lobby" class="screen">
+    <h2>Комната</h2>
+    <div class="lobby-code">Код:<br><span id="lobby-password">0000</span></div>
+    <div class="players-grid" id="players-grid"></div>
+    <button class="btn btn-primary" id="btn-start" onclick="startGame()">Начать игру</button>
+    <button class="btn btn-secondary" onclick="leaveLobby()">Выйти</button>
+</div>
+
+<!-- ИГРА -->
+<div id="screen-game" class="screen">
+    <div class="game-header">
+        <div>
+            <div class="round-info" id="round-info">Раунд 1/12</div>
+            <div class="round-info" id="goal-info">Цель: 8 очков</div>
+        </div>
+        <div class="scores" id="scores-display">0 / 8</div>
+    </div>
+
+    <div id="game-content"></div>
+</div>
+
+<!-- КОНЕЦ ИГРЫ -->
+<div id="screen-end" class="screen">
+    <div class="game-over">
+        <h1 id="end-title">Победа!</h1>
+        <p id="end-text" class="subtitle"></p>
+        <div class="scores" style="font-size:48px;margin:20px 0;" id="end-score"></div>
+        <button class="btn btn-primary" id="btn-play-again" onclick="playAgain()">Играть ещё</button>
+        <button class="btn btn-secondary" onclick="leaveLobby()">В главное меню</button>
+    </div>
+</div>
+
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const socket = io();
+
+let me = { id: null, name: '', avatar: null };
+let lobbyData = null;
+
+// ============ СОКЕТЫ ============
+socket.on('connect', () => { me.id = socket.id; });
+
+socket.on('lobby_joined', (data) => handleLobbyUpdate(data));
+socket.on('lobby_updated', (data) => handleLobbyUpdate(data));
+socket.on('error_msg', (msg) => showError(msg));
+
+function handleLobbyUpdate(data) {
+    lobbyData = data;
+    if (data.state === 'lobby') {
+        renderLobby();
+        showScreen('screen-lobby');
+    } else if (data.state === 'playing') {
+        renderGame();
+        showScreen('screen-game');
+    } else if (data.state === 'finished') {
+        renderEnd();
+        showScreen('screen-end');
+    }
+}
+
+// ============ МЕНЮ ============
+function handleAvatar(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) return showError('Максимум 2 МБ');
+    const r = new FileReader();
+    r.onload = (ev) => {
+        me.avatar = ev.target.result;
+        document.getElementById('avatar-preview').innerHTML = `<img src="${ev.target.result}">`;
+    };
+    r.readAsDataURL(file);
+}
+
+function createLobby() {
+    const name = document.getElementById('nickname').value.trim();
+    if (!name) return showError('Введите ник');
+    me.name = name;
+    socket.emit('create_lobby', { name, avatar: me.avatar });
+}
+
+function joinLobby() {
+    const name = document.getElementById('nickname').value.trim();
+    const code = document.getElementById('join-code').value.trim();
+    if (!name) return showError('Введите ник');
+    if (!/^\d{4}$/.test(code)) return showError('Введите 4 цифры');
+    me.name = name;
+    socket.emit('join_lobby', { code, name, avatar: me.avatar });
+}
+
+function leaveLobby() {
+    socket.emit('leave_lobby');
+    lobbyData = null;
+    showScreen('screen-menu');
+}
+
+function startGame() { socket.emit('start_game'); }
+function playAgain() { socket.emit('play_again'); }
+
+// ============ РЕНДЕР ЛОББИ ============
+function renderLobby() {
+    document.getElementById('lobby-password').textContent = lobbyData.code;
+    const grid = document.getElementById('players-grid');
+    grid.innerHTML = '';
+    const isHost = lobbyData.players[0].id === me.id;
+
+    for (let i = 0; i < 4; i++) {
+        const p = lobbyData.players[i];
+        const slot = document.createElement('div');
+        slot.className = `player-slot ${p ? 'filled' : 'empty'} ${i === 0 && p ? 'host' : ''}`;
+        if (p) {
+            const av = p.avatar ? `<img src="${p.avatar}">` : '👤';
+            slot.innerHTML = `
+                <div class="slot-avatar">${av}</div>
+                <div class="slot-name">${p.name}</div>
+                ${i === 0 ? '<div class="host-badge">хост</div>' : ''}
+            `;
+        } else {
+            slot.innerHTML = `<div class="slot-avatar">?</div><div class="slot-name">Ожидание...</div>`;
+        }
+        grid.appendChild(slot);
+    }
+
+    const btn = document.getElementById('btn-start');
+    const count = lobbyData.players.length;
+    if (!isHost) {
+        btn.disabled = true;
+        btn.textContent = `Ожидание хоста... (${count}/4)`;
+    } else if (count >= 2) {
+        btn.disabled = false;
+        btn.textContent = `Начать игру (${count} игроков)`;
+    } else {
+        btn.disabled = true;
+        btn.textContent = `Нужно 2+ игроков (${count}/4)`;
+    }
+}
+
+// ============ РЕНДЕР ИГРЫ ============
+function renderGame() {
+    const g = lobbyData.game;
+    document.getElementById('round-info').textContent = `Раунд ${g.currentRound}/${g.totalRounds}`;
+    document.getElementById('scores-display').textContent = `${g.scores} / 8`;
+
+    const content = document.getElementById('game-content');
+    const currentPlayer = lobbyData.players[g.currentPlayerIndex];
+
+    if (g.phase === 'draw') {
+        if (g.isMyTurn) {
+            content.innerHTML = `
+                <div class="active-player">
+                    <div>Ваш ход!</div>
+                </div>
+                <button class="btn btn-primary" onclick="socket.emit('draw_card')">🎴 Тянуть карту</button>
+            `;
+        } else {
+            content.innerHTML = `
+                <div class="active-player">
+                    <div class="name">${currentPlayer.name}</div>
+                    <div>тянет карту...</div>
+                </div>
+            `;
+        }
+    } else if (g.phase === 'statement') {
+        if (g.isMyTurn) {
+            content.innerHTML = `
+                <div class="card-display card-${g.card.type}">
+                    Вам выпала карта: ${g.card.type === 'truth' ? 'ПРАВДА' : 'ЛОЖЬ'}
+                </div>
+                <p style="text-align:center;color:var(--muted);">
+                    ${g.card.type === 'truth'
+                        ? 'Расскажите правдивый факт о себе (реальная история)'
+                        : 'Придумайте и расскажите ложный факт о себе (выдумка)'}
+                </p>
+                <textarea id="statement-input" placeholder="Напишите ваше утверждение..."></textarea>
+                <button class="btn btn-primary" onclick="submitStatement()">Отправить</button>
+            `;
+        } else {
+            content.innerHTML = `
+                <div class="active-player">
+                    <div class="name">${currentPlayer.name}</div>
+                    <div>смотрит в карту и придумывает...</div>
+                </div>
+            `;
+        }
+    } else if (g.phase === 'vote') {
+        if (g.isMyTurn) {
+            content.innerHTML = `
+                <div class="active-player">
+                    <div class="name">${currentPlayer.name}</div>
+                    <div>ожидает голосов...</div>
+                </div>
+                <div class="statement-box">«${g.currentStatement}»</div>
+                <p style="text-align:center;color:var(--muted);">Голосов: ${g.totalVotes}/${g.totalVoters}</p>
+            `;
+        } else {
+            const disabled = g.myVote ? 'disabled' : '';
+            content.innerHTML = `
+                <div class="active-player">
+                    <div class="name">${currentPlayer.name}</div>
+                    <div>сказал(а):</div>
+                </div>
+                <div class="statement-box">«${g.currentStatement}»</div>
+                <div class="vote-buttons">
+                    <button class="btn btn-truth" ${disabled} onclick="doVote('believe')">✓ Верю</button>
+                    <button class="btn btn-lie" ${disabled} onclick="doVote('not_believe')">✗ Не верю</button>
+                </div>
+                <p style="text-align:center;color:var(--muted);">
+                    ${g.myVote ? 'Ваш голос учтён' : `Голосов: ${g.totalVotes}/${g.totalVoters}`}
+                </p>
+            `;
+        }
+    } else if (g.phase === 'result') {
+        const r = g.lastResult;
+        let votesHtml = '';
+        lobbyData.players.forEach(p => {
+            if (p.id === currentPlayer.id) return;
+            const vote = r.votes[p.id];
+            const correct = vote === r.correctChoice;
+            const label = vote === 'believe' ? 'Верю' : 'Не верю';
+            votesHtml += `<div class="${correct ? 'vote-correct' : 'vote-wrong'}">
+                ${p.name}: ${label} ${correct ? '✓' : '✗'}
+            </div>`;
+        });
+
+        content.innerHTML = `
+            <div class="active-player">
+                <div class="name">${currentPlayer.name}</div>
+            </div>
+            <div class="statement-box">«${g.currentStatement}»</div>
+            <div class="card-display card-${r.cardType}">
+                На самом деле это была: ${r.cardType === 'truth' ? 'ПРАВДА' : 'ЛОЖЬ'}
+            </div>
+            <div class="result-box">
+                <h3>${r.resultText}</h3>
+                <div class="points-earned">+${r.pointsEarned} очков</div>
+                <div class="vote-results-list">${votesHtml}</div>
+            </div>
+            ${g.isMyTurn ? '<button class="btn btn-primary" onclick="socket.emit(\'next_turn\')">Следующий ход</button>' : '<p style="text-align:center;color:var(--muted);">Ожидание следующего хода...</p>'}
+        `;
+    }
+}
+
+function submitStatement() {
+    const text = document.getElementById('statement-input').value.trim();
+    if (!text) return showError('Введите утверждение');
+    socket.emit('submit_statement', { text });
+}
+
+function doVote(choice) {
+    socket.emit('vote', { choice });
+}
+
+// ============ КОНЕЦ ИГРЫ ============
+function renderEnd() {
+    const won = lobbyData.game.scores >= 8;
+    document.getElementById('end-title').textContent = won ? '🎉 Победа!' : '😢 Поражение';
+    document.getElementById('end-title').className = won ? 'win' : 'lose';
+    document.getElementById('end-text').textContent = won
+        ? 'Команда справилась! Отличная интуиция!'
+        : 'В этот раз не хватило очков. Попробуйте ещё!';
+    document.getElementById('end-score').textContent = `${lobbyData.game.scores} / 8`;
+    const isHost = lobbyData.players[0].id === me.id;
+    document.getElementById('btn-play-again').style.display = isHost ? 'block' : 'none';
+}
+
+// ============ УТИЛИТЫ ============
+function showScreen(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+}
+function showError(msg) {
+    const el = document.getElementById('error-msg');
+    el.textContent = msg;
+    el.style.display = 'block';
+    setTimeout(() => el.style.display = 'none', 3000);
+}
+</script>
+</body>
+</html>
